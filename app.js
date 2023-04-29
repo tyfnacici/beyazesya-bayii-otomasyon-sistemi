@@ -5,7 +5,7 @@ const connection = require('./service/connection.js');
 
 const app = express();
 
-connection.connect((err) => {
+connection.getConnection((err) => {
   if (err) throw err;
   console.log('Connected!');
   app.listen(3000, () => {
@@ -13,6 +13,6 @@ connection.connect((err) => {
   })
 });
 
-
 app.use('/', api)
 
+process.on("exit",()=>{pool.end(console.log("All connections are closing!"));})
