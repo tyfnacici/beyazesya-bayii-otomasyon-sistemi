@@ -1,0 +1,47 @@
+CREATE TABLE musteriler (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    ad VARCHAR(20) NOT NULL,
+    soyad VARCHAR(20) NOT NULL,
+    adres TEXT NOT NULL,
+    telefon_numarasi VARCHAR(11) NOT NULL
+);
+
+
+CREATE TABLE urunler (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    urun_adi VARCHAR(30) NOT NULL,
+    marka VARCHAR(20) NOT NULL,
+    kategori VARCHAR(30) NOT NULL,
+    fiyat DECIMAL(10, 2) NOT NULL
+);
+
+CREATE TABLE siparisler (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    urun_id INT,
+    musteri_id INT,
+    adres TEXT NOT NULL,
+    fiyat DECIMAL(10, 2) NOT NULL,
+    telefon_numarasi VARCHAR(20) NOT NULL,
+    siparis_durumu ENUM('Beklemede', 'Kargolandı', 'Teslim Edildi', 'İptal Edildi') NOT NULL,
+    FOREIGN KEY (urun_id) REFERENCES urunler(id),
+    FOREIGN KEY (musteri_id) REFERENCES musteriler(id)
+);
+
+CREATE TABLE envanter (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    urun_id INT,
+    stok_miktari INT NOT NULL,
+    FOREIGN KEY (urun_id) REFERENCES urunler(id)
+);
+
+//Ürün miktarı 0 ise stokta yok, 0 dan büyükse stokta döndüren view.
+
+CREATE VIEW urunler_stok AS
+SELECT u.id, u.urun_adi, u.marka, u.kategori, u.fiyat,
+       e.stok_miktari,
+       CASE
+           WHEN e.stok_miktari > 0 THEN 'Stokta'
+           ELSE 'Stokta Yok'
+       END AS stok_durumu
+FROM urunler u
+JOIN envanter e ON u.id = e.urun_id;
