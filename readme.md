@@ -24,6 +24,7 @@
 	+ Kategori 
 	+ Fiyat
 	+ Stok durumu
+	+ Üreticiden satın alım fiyatı
 
 ### Sipariş sayfası
 
@@ -48,8 +49,10 @@
 
 ### Satış raporlama sayfası 
 
-- Satışlardan elde edilen zaman içindeki gelir, kar marjları ve satış eğilimlerini öğreneceğiz.
+- Satışlardan elde edilen:
+	+ Gelir 
+	+ Kar marjları
+	+ Satış eğilimleri 
 
-### Login sayfası
 
-- Login sayfası işte.
+### Login sayfası işte.

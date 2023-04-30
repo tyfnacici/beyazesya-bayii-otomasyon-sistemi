@@ -1,10 +1,11 @@
 require('dotenv').config();
 const express = require('express');
+const bodyParser = require('body-parser');
 const api = require('./routes/index.js');
 const connection = require('./service/connection.js');
 
 const app = express();
-
+app.use(bodyParser.json());
 connection.getConnection((err) => {
   if (err) throw err;
   console.log('Connected!');
