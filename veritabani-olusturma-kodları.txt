@@ -12,16 +12,16 @@ CREATE TABLE urunler (
     urun_adi VARCHAR(30) NOT NULL,
     marka VARCHAR(20) NOT NULL,
     kategori VARCHAR(30) NOT NULL,
-    fiyat DECIMAL(10, 2) NOT NULL
+    fiyat DECIMAL(10, 2) NOT NULL,
+    ureticiden_satinalim_fiyati DECIMAL(10, 2) NOT NULL
 );
 
 CREATE TABLE siparisler (
     id INT AUTO_INCREMENT PRIMARY KEY,
     urun_id INT,
     musteri_id INT,
-    adres TEXT NOT NULL,
     fiyat DECIMAL(10, 2) NOT NULL,
-    telefon_numarasi VARCHAR(20) NOT NULL,
+    siparis_tarihi TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     siparis_durumu ENUM('Beklemede', 'Kargolandı', 'Teslim Edildi', 'İptal Edildi') NOT NULL,
     FOREIGN KEY (urun_id) REFERENCES urunler(id),
     FOREIGN KEY (musteri_id) REFERENCES musteriler(id)
@@ -45,3 +45,17 @@ SELECT u.id, u.urun_adi, u.marka, u.kategori, u.fiyat,
        END AS stok_durumu
 FROM urunler u
 JOIN envanter e ON u.id = e.urun_id;
+
+//Aylık satıs raporlama viewi
+
+CREATE VIEW satis_raporlama_aylik AS
+SELECT YEAR(s.created_at) AS yil,
+       MONTH(s.created_at) AS ay,
+       SUM(s.fiyat) AS toplam_gelir,
+       SUM(s.fiyat - u.ureticiden_satinalim_fiyati) AS toplam_kar_marji
+FROM siparisler s
+JOIN urunler u ON s.urun_id = u.id
+WHERE s.siparis_durumu = 'Teslim Edildi'
+GROUP BY YEAR(s.created_at), MONTH(s.created_at)
+ORDER BY YEAR(s.created_at), MONTH(s.created_at);
+
