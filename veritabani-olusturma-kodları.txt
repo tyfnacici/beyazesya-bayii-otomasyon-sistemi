@@ -49,13 +49,13 @@ JOIN envanter e ON u.id = e.urun_id;
 //Aylık satıs raporlama viewi
 
 CREATE VIEW satis_raporlama_aylik AS
-SELECT YEAR(s.created_at) AS yil,
-       MONTH(s.created_at) AS ay,
+SELECT YEAR(s.siparis_tarihi) AS yil,
+       MONTH(s.siparis_tarihi) AS ay,
        SUM(s.fiyat) AS toplam_gelir,
        SUM(s.fiyat - u.ureticiden_satinalim_fiyati) AS toplam_kar_marji
 FROM siparisler s
 JOIN urunler u ON s.urun_id = u.id
 WHERE s.siparis_durumu = 'Teslim Edildi'
-GROUP BY YEAR(s.created_at), MONTH(s.created_at)
-ORDER BY YEAR(s.created_at), MONTH(s.created_at);
+GROUP BY YEAR(s.siparis_tarihi), MONTH(s.siparis_tarihi)
+ORDER BY YEAR(s.siparis_tarihi), MONTH(s.siparis_tarihi);
 

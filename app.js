@@ -9,11 +9,20 @@ app.use(bodyParser.json());
 connection.getConnection((err) => {
   if (err) throw err;
   console.log('Connected!');
-  app.listen(3000, () => {
+  const server = app.listen(3000, () => {
     console.log('Server is running at port 3000');
   })
 });
 
 app.use('/', api)
 
-process.on("exit",()=>{pool.end(console.log("All connections are closing!"));})
+
+//Uygulama kapatıldığında tüm bağlantıları kapatır
+process.on('SIGINT', function() {
+  connection.end((err) => {
+    console.log(err);
+    process.exit(1);
+  });
+  console.log("\nBağlantılar sonlandırılıyor...")
+  process.exit(0);
+});
