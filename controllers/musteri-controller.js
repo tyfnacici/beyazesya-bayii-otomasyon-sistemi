@@ -4,6 +4,9 @@ exports.musterileriGetir = async (req, res) => {
   const q = "SELECT * FROM musteriler";
   connection.query(q, (error, data) => {
     if (error) return res.status(500).json({ message: error });
+    if (data.length === 0) {
+      return res.status(404).json({ error: "Kullanıcı bulunamadı." });
+    }
     return res.json(data);
   });
 };
@@ -28,7 +31,12 @@ exports.musteriGuncelle = async (req, res) => {
   const q = "UPDATE musteriler SET ? WHERE id = ?";
   connection.query(q, [values, id], (error, data) => {
     if (error) return res.status(500).json({ message: error });
-    return res.json(data);
+    if (data.affectedRows === 0) {
+      return res.status(404).json({ error: "Kullanıcı bulunamadı." });
+    }
+    return res
+      .status(200)
+      .json({ message: "Kullanıcı başarıyla güncellendi." });
   });
 };
 
@@ -37,6 +45,9 @@ exports.tekMusteriGetir = async (req, res) => {
   const q = "SELECT * FROM musteriler WHERE id = ?";
   connection.query(q, [id], (error, data) => {
     if (error) return res.status(500).json({ message: error });
+    if (data.length === 0) {
+      return res.status(404).json({ error: "Kullanıcı bulunamadı." });
+    }
     return res.json(data);
   });
 };
@@ -46,6 +57,29 @@ exports.musteriSil = async (req, res) => {
   const q = "DELETE FROM musteriler WHERE id = ?";
   connection.query(q, [id], (error, data) => {
     if (error) return res.status(500).json({ message: error });
-    return res.json(data);
+    if (data.affectedRows === 0) {
+      return res.status(404).json({ error: "Kullanıcı bulunamadı." });
+    }
+    return res.status(200).json({ message: "Kullanıcı başarıyla silindi." });
+  });
+};
+
+exports.musterileriFiltrele = async (req, res) => {
+  const { keyword } = req.params;
+  const search = `%${keyword}%`;
+  const q = `
+    SELECT * 
+    FROM musteriler 
+    WHERE ad LIKE ? 
+      OR soyad LIKE ? 
+      OR adres LIKE ? 
+      OR telefon_numarasi LIKE ?
+  `;
+  connection.query(q, [search, search, search, search], (error, data) => {
+    if (error) return res.status(500).json({ message: error });
+    if (data.length === 0) {
+      return res.status(404).json({ error: "Kullanıcı bulunamadı." });
+    }
+    return res.status(200).json({ data });
   });
 };

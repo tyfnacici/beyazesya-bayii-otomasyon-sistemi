@@ -7,6 +7,7 @@ const {
   musteriGuncelle,
   tekMusteriGetir,
   musteriSil,
+  musterileriFiltrele,
 } = require("../controllers/musteri-controller.js");
 
 router.get("/", musterileriGetir);
@@ -18,5 +19,7 @@ router.patch("/:id", musteriGuncelle);
 router.get("/:id", tekMusteriGetir);
 
 router.delete("/:id", musteriSil);
+
+router.get("/filter/:keyword", musterileriFiltrele);
 
 module.exports = router;
