@@ -23,10 +23,28 @@ exports.musteriOlustur = async (req, res) => {
 };
 
 exports.musteriGuncelle = async (req, res) => {
-  const { id } = req.params.id;
+  const id = req.params.id;
   const values = req.body;
   const q = "UPDATE musteriler SET ? WHERE id = ?";
   connection.query(q, [values, id], (error, data) => {
+    if (error) return res.status(500).json({ message: error });
+    return res.json(data);
+  });
+};
+
+exports.tekMusteriGetir = async (req, res) => {
+  const id = req.params.id;
+  const q = "SELECT * FROM musteriler WHERE id = ?";
+  connection.query(q, [id], (error, data) => {
+    if (error) return res.status(500).json({ message: error });
+    return res.json(data);
+  });
+};
+
+exports.musteriSil = async (req, res) => {
+  const id = req.params.id;
+  const q = "DELETE FROM musteriler WHERE id = ?";
+  connection.query(q, [id], (error, data) => {
     if (error) return res.status(500).json({ message: error });
     return res.json(data);
   });
