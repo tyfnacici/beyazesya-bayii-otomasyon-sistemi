@@ -68,17 +68,71 @@ exports.siparisSil = async (req, res) => {
 
 exports.siparisleriFiltrele = async (req, res) => {
     const keyword = req.params.keyword;
-    const q = `SELECT * FROM siparisler 
-    WHERE musteri_id LIKE '%${keyword}%' 
-    OR urun_id LIKE '%${keyword}%' 
-    OR siparis_tarihi LIKE '%${keyword}%' 
-    OR teslim_tarihi LIKE '%${keyword}%' 
-    OR siparis_durumu LIKE '%${keyword}%'`;
-    connection.query(q, (error, data) => {
+    const select = req.params.select;
+  
+    let q;
+    let params;
+  
+    switch (select) {
+      case "musteri_id":
+        q = `SELECT * FROM siparisler WHERE musteri_id LIKE ?`;
+        params = [`%${keyword}%`];
+        break;
+  
+        case "urun_id":
+             q = `SELECT * FROM siparisler WHERE urun_id LIKE ?`;
+             params = [`%${keyword}%`];
+             break;
+
+        case "siparis_tarihi":
+            q = `SELECT * FROM siparisler WHERE siparis_tarihi LIKE ?`;
+            params = [`%${keyword}%`];
+            break;
+    
+        case "teslim_tarihi":
+            q = `SELECT * FROM siparisler WHERE teslim_tarihi LIKE ?`;
+            params = [`%${keyword}%`];
+            break;
+        
+        case "siparis_durumu":
+                q = `SELECT * FROM siparisler WHERE siparis_durumu LIKE ?`;
+                params = [`%${keyword}%`];
+                break;
+
+     default:
+        q = `SELECT * FROM siparisler WHERE 
+        musteri_id LIKE ? 
+        OR urun_id LIKE ? 
+        OR siparis_tarihi LIKE ? 
+        OR teslim_tarihi LIKE ? 
+        OR siparis_durumu LIKE ?`;
+        params = [
+          `%${keyword}%`,
+          `%${keyword}%`,
+          `%${keyword}%`,
+          `%${keyword}%`,
+          `%${keyword}%`,
+        ];
+        break;
+    }
+  
+    try {
+      const results = await connection.query(q, params);
+  
+      if (results.length === 0) {
+        return res.status(404).json({ error: "Sipariş bulunamadı." });
+      }
+  
+      return res.json(results);
+    } catch (error) {
+      return res.status(500).json({ message: error });
+    }
+    
+    /*connection.query(q, (error, data) => {
         if (error) return res.status(500).json({ message: error });
         if (data.length === 0) {
             return res.status(404).json({ error: "Sipariş bulunamadı." });
         }
         return res.json(data);
-    });
+    });*/
 }

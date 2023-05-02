@@ -20,6 +20,6 @@ router.get("/:id", tekSiparisGetir); // get isteği ile siparisleriGetir fonksiy
 
 router.delete("/:id", siparisSil); // delete isteği ile siparisleriSil fonksiyonu çağırıldı
 
-router.get("/filter/:keyword", siparisleriFiltrele); //  get isteği ile siparisleriFiltrele fonksiyonu çağırıldı
+router.get("/filter/:select&keyword", siparisleriFiltrele); //  get isteği ile siparisleriFiltrele fonksiyonu çağırıldı
 
 module.exports = router;
