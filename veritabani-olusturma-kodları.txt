@@ -1,11 +1,12 @@
 CREATE TABLE musteriler (
     id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT,
     ad VARCHAR(20) NOT NULL,
     soyad VARCHAR(20) NOT NULL,
     adres TEXT NOT NULL,
-    telefon_numarasi VARCHAR(11) NOT NULL
+    telefon_numarasi VARCHAR(11) NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id)
 );
-
 
 CREATE TABLE urunler (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -18,19 +19,23 @@ CREATE TABLE urunler (
 
 CREATE TABLE siparisler (
     id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT,
     urun_id INT,
     musteri_id INT,
     fiyat DECIMAL(10, 2) NOT NULL,
     siparis_tarihi TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     siparis_durumu ENUM('Beklemede', 'Kargolandı', 'Teslim Edildi', 'İptal Edildi') NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id),
     FOREIGN KEY (urun_id) REFERENCES urunler(id),
     FOREIGN KEY (musteri_id) REFERENCES musteriler(id)
 );
 
 CREATE TABLE envanter (
     id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT,
     urun_id INT,
     stok_miktari INT NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id),
     FOREIGN KEY (urun_id) REFERENCES urunler(id)
 );
 
@@ -44,7 +49,7 @@ SELECT u.id, u.urun_adi, u.marka, u.kategori, u.fiyat,
            ELSE 'Stokta Yok'
        END AS stok_durumu
 FROM urunler u
-JOIN envanter e ON u.id = e.urun_id;
+JOIN envanter e ON u.id = e.urun_id AND u.user_id = e.user_id;
 
 //Aylık satıs raporlama viewi
 
@@ -54,11 +59,10 @@ SELECT YEAR(s.siparis_tarihi) AS yil,
        SUM(s.fiyat) AS toplam_gelir,
        SUM(s.fiyat - u.ureticiden_satinalim_fiyati) AS toplam_kar_marji
 FROM siparisler s
-JOIN urunler u ON s.urun_id = u.id
+JOIN urunler u ON s.urun_id = u.id AND s.user_id = u.user_id
 WHERE s.siparis_durumu = 'Teslim Edildi'
 GROUP BY YEAR(s.siparis_tarihi), MONTH(s.siparis_tarihi)
 ORDER BY YEAR(s.siparis_tarihi), MONTH(s.siparis_tarihi);
-
 
 CREATE TABLE users (
     id INT AUTO_INCREMENT PRIMARY KEY,
