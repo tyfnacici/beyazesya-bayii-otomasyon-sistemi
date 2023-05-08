@@ -1,72 +1,127 @@
-CREATE TABLE musteriler (
+create database vtbsProje_n;
+use vtbsProje_n;
+
+-- Ürünler
+CREATE TABLE kategori (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT,
-    ad VARCHAR(20) NOT NULL,
-    soyad VARCHAR(20) NOT NULL,
-    adres TEXT NOT NULL,
-    telefon_numarasi VARCHAR(11) NOT NULL,
-    FOREIGN KEY (user_id) REFERENCES users(id)
+    kategori_adi VARCHAR(30) NOT NULL
+);
+
+CREATE TABLE markalar (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    marka_adi VARCHAR(20) NOT NULL
 );
 
 CREATE TABLE urunler (
     id INT AUTO_INCREMENT PRIMARY KEY,
     urun_adi VARCHAR(30) NOT NULL,
-    marka VARCHAR(20) NOT NULL,
-    kategori VARCHAR(30) NOT NULL,
+    marka_id INT,
+    kategori_id INT,
     fiyat DECIMAL(10, 2) NOT NULL,
-    ureticiden_satinalim_fiyati DECIMAL(10, 2) NOT NULL
+    FOREIGN KEY (kategori_id) REFERENCES kategori(id),
+    FOREIGN KEY (marka_id) REFERENCES markalar(id)
 );
 
-CREATE TABLE siparisler (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT,
-    urun_id INT,
-    musteri_id INT,
-    fiyat DECIMAL(10, 2) NOT NULL,
-    siparis_tarihi TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    siparis_durumu ENUM('Beklemede', 'Kargolandı', 'Teslim Edildi', 'İptal Edildi') NOT NULL,
-    FOREIGN KEY (user_id) REFERENCES users(id),
-    FOREIGN KEY (urun_id) REFERENCES urunler(id),
-    FOREIGN KEY (musteri_id) REFERENCES musteriler(id)
+-- magaza
+
+CREATE TABLE magazalar (
+id INT AUTO_INCREMENT PRIMARY KEY,
+ad varchar(50),
+adres varchar(250)
 );
 
-CREATE TABLE envanter (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT,
-    urun_id INT,
-    stok_miktari INT NOT NULL,
-    FOREIGN KEY (user_id) REFERENCES users(id),
-    FOREIGN KEY (urun_id) REFERENCES urunler(id)
+-- Kulanıcılar
+
+CREATE TABLE unvanlar (
+id INT AUTO_INCREMENT PRIMARY KEY,
+aciklama varchar(50)
 );
-
-//Ürün miktarı 0 ise stokta yok, 0 dan büyükse stokta döndüren view.
-
-CREATE VIEW urunler_stok AS
-SELECT u.id, u.urun_adi, u.marka, u.kategori, u.fiyat,
-       e.stok_miktari,
-       CASE
-           WHEN e.stok_miktari > 0 THEN 'Stokta'
-           ELSE 'Stokta Yok'
-       END AS stok_durumu
-FROM urunler u
-JOIN envanter e ON u.id = e.urun_id AND u.user_id = e.user_id;
-
-//Aylık satıs raporlama viewi
-
-CREATE VIEW satis_raporlama_aylik AS
-SELECT YEAR(s.siparis_tarihi) AS yil,
-       MONTH(s.siparis_tarihi) AS ay,
-       SUM(s.fiyat) AS toplam_gelir,
-       SUM(s.fiyat - u.ureticiden_satinalim_fiyati) AS toplam_kar_marji
-FROM siparisler s
-JOIN urunler u ON s.urun_id = u.id AND s.user_id = u.user_id
-WHERE s.siparis_durumu = 'Teslim Edildi'
-GROUP BY YEAR(s.siparis_tarihi), MONTH(s.siparis_tarihi)
-ORDER BY YEAR(s.siparis_tarihi), MONTH(s.siparis_tarihi);
 
 CREATE TABLE users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(50) NOT NULL UNIQUE,
-    password_hash VARCHAR(255) NOT NULL,
-    role ENUM('URETICI', 'BAYII') NOT NULL
+    password_hash VARCHAR(255),
+    rol INT NOT NULL DEFAULT 1, -- Admin=0, Calisan=1
+    ad VARCHAR(20) NOT NULL,
+    soyad VARCHAR(20) NOT NULL,
+    unvan_id INT,
+    maas DECIMAL(10, 2) NOT NULL,
+    FOREIGN KEY (unvan_id) REFERENCES unvanlar(id)
+);
+
+CREATE TABLE musteriler (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    ad VARCHAR(20) NOT NULL,
+    soyad VARCHAR(20) NOT NULL
+);
+
+CREATE TABLE telefon_nolar (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    tel_no VARCHAR(11)
+);
+
+CREATE TABLE adresler (
+id INT AUTO_INCREMENT PRIMARY KEY,
+adres varchar(250)
+);
+
+CREATE TABLE adresler_musteriler (
+	musteriler_id INT,
+    adresler_id INT,
+    PRIMARY KEY (adresler_id, musteriler_id),
+    FOREIGN KEY (adresler_id) REFERENCES adresler(id),
+    FOREIGN KEY (musteriler_id) REFERENCES musteriler(id)
+);
+
+CREATE TABLE adresler_users (
+	users_id INT,
+    adresler_id INT,
+    PRIMARY KEY (adresler_id, users_id),
+    FOREIGN KEY (adresler_id) REFERENCES adresler(id),
+    FOREIGN KEY (users_id) REFERENCES users(id)
+);
+
+CREATE TABLE telefon_nolar_musteriler (
+	musteriler_id INT,
+    telefon_nolar_id INT,
+    PRIMARY KEY (telefon_nolar_id, musteriler_id),
+    FOREIGN KEY (telefon_nolar_id) REFERENCES telefon_nolar(id),
+    FOREIGN KEY (musteriler_id) REFERENCES musteriler(id)
+);
+
+CREATE TABLE telefon_nolar_users (
+	users_id INT,
+    telefon_nolar_id INT,
+    PRIMARY KEY (telefon_nolar_id, users_id),
+    FOREIGN KEY (telefon_nolar_id) REFERENCES telefon_nolar(id),
+    FOREIGN KEY (users_id) REFERENCES users(id)
+);
+
+CREATE TABLE magzalar_users (
+	users_id INT,
+    magazalar_id INT,
+    PRIMARY KEY (magazalar_id, users_id),
+    FOREIGN KEY (magazalar_id) REFERENCES magazalar(id),
+    FOREIGN KEY (users_id) REFERENCES users(id)
+);
+-- sıparısler
+
+CREATE TABLE magzalar_siparis (
+id INT AUTO_INCREMENT PRIMARY KEY,
+siparis_tarih DATETIME DEFAULT CURRENT_TIMESTAMP,
+adet INT,
+magazalar_id INT,
+urunler_id INT,
+FOREIGN KEY (magazalar_id) REFERENCES magazalar(id),
+FOREIGN KEY (urunler_id) REFERENCES urunler(id)
+);
+
+CREATE TABLE musteriler_siparis (
+id INT AUTO_INCREMENT PRIMARY KEY,
+siparis_tarih DATETIME DEFAULT CURRENT_TIMESTAMP,
+adet INT,
+musteriler_id INT,
+urunler_id INT,
+FOREIGN KEY (musteriler_id) REFERENCES musteriler(id),
+FOREIGN KEY (urunler_id) REFERENCES urunler(id)
 );
