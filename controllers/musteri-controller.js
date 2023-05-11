@@ -1,7 +1,9 @@
 const connection = require("../service/connection.js");
 
+//Body işlemleri
+
 exports.musterileriGetir = async (req, res) => {
-  const q = "SELECT * FROM musteriler";
+  const q = "SELECT * FROM musteriler;";
   connection.query(q, (error, data) => {
     if (error) return res.status(500).json({ message: error });
     if (data.length === 0) {
@@ -12,13 +14,8 @@ exports.musterileriGetir = async (req, res) => {
 };
 
 exports.musteriOlustur = async (req, res) => {
-  const q = `INSERT INTO musteriler (ad, soyad, adres, telefon_numarasi) VALUES (?)`;
-  const values = [
-    req.body.ad,
-    req.body.soyad,
-    req.body.adres,
-    req.body.telefon_numarasi,
-  ];
+  const q = `INSERT INTO musteriler (ad, soyad) VALUES (?,?);`;
+  const values = [req.body.ad, req.body.soyad];
   connection.query(q, [values], (error, data) => {
     if (error) return res.status(500).json({ message: error });
     return res.json("Müşteri başarıyla oluşturuldu.");
@@ -26,6 +23,7 @@ exports.musteriOlustur = async (req, res) => {
 };
 
 exports.musteriGuncelle = async (req, res) => {
+  // test edilecek
   const id = req.params.id;
   const values = req.body;
   const q = "UPDATE musteriler SET ? WHERE id = ?";
@@ -65,6 +63,7 @@ exports.musteriSil = async (req, res) => {
 };
 
 exports.musterileriFiltrele = async (req, res) => {
+  // geliştirilecek
   const { keyword } = req.params;
   const search = `%${keyword}%`;
   const q = `
@@ -81,5 +80,135 @@ exports.musterileriFiltrele = async (req, res) => {
       return res.status(404).json({ error: "Kullanıcı bulunamadı." });
     }
     return res.status(200).json({ data });
+  });
+};
+
+//Adres işlemleri
+
+exports.musteriAdresleriniGetir = async (req, res) => {
+  const id = req.params.id;
+  const q = `SELECT
+  adresler_musteriler.musteriler_id,
+  adresler.id,
+  adresler.adres
+  FROM 
+  adresler_musteriler 
+  join adresler ON adresler_musteriler.musteriler_id = adresler.id
+  WHERE 
+  musteriler_id = ?;`;
+  connection.query(q, [id], (error, data) => {
+    if (error) return res.status(500).json({ message: error });
+    if (data.length === 0) {
+      return res.status(404).json({ error: "Adres bulunamadı." });
+    }
+    return res.json(data);
+  });
+};
+
+exports.musteriAdresEkle = async (req, res) => {
+  //test edilecek
+  const id = req.params.id;
+  const q = `INSERT INTO adresler (adres) VALUES (?);
+  INSERT INTO adresler_musteriler (musteriler_id, adresler_id) VALUES (2, LAST_INSERT_ID());`;
+  const values = [req.body.adres];
+  connection.query(q, [values], (error, data) => {
+    if (error) return res.status(500).json({ message: error });
+    return res.json("Adres başarıyla oluşturuldu.");
+  });
+};
+
+exports.musteriAdresGuncelle = async (req, res) => {
+  const id = req.params.id;
+  const values = req.body;
+  const q = `UPDATE adresler
+  SET adres = ?
+  WHERE id = (
+      SELECT adresler_id
+      FROM adresler_musteriler
+      WHERE musteriler_id = ?
+  );`;
+  connection.query(q, [values, id], (error, data) => {
+    if (error) return res.status(500).json({ message: error });
+    if (data.affectedRows === 0) {
+      return res.status(404).json({ error: "Adres bulunamadı." });
+    }
+    return res.status(200).json({ message: "Adres başarıyla güncellendi." });
+  });
+};
+
+exports.musteriAdresSil = async (req, res) => {
+  const id = req.params.id;
+  const q = `DELETE FROM adresler_musteriler
+  WHERE id = musteriler_id = ?;`;
+  connection.query(q, [id], (error, data) => {
+    if (error) return res.status(500).json({ message: error });
+    if (data.affectedRows === 0) {
+      return res.status(404).json({ error: "Adres bulunamadı." });
+    }
+    return res.status(200).json({ message: "Adres başarıyla silindi." });
+  });
+};
+
+//Telefon işlemleri
+exports.musteriTelefonlariniGetir = async (req, res) => {
+  const id = req.params.id;
+  const q = `SELECT
+  telefon_nolar_musteriler.musteriler_id,
+  telefon_nolar.id,
+  telefon_nolar.tel_no
+  FROM 
+  telefon_nolar_musteriler
+  join telefon_nolar ON telefon_nolar_musteriler.musteriler_id = telefon_nolar.id
+  WHERE 
+  musteriler_id = ? ;`;
+  connection.query(q, [id], (error, data) => {
+    if (error) return res.status(500).json({ message: error });
+    if (data.length === 0) {
+      return res.status(404).json({ error: "Telefon bulunamadı." });
+    }
+    return res.json(data);
+  });
+};
+
+exports.musteriTelefonEkle = async (req, res) => {
+  const id = req.params.id;
+  const q = `INSERT INTO telefon_nolar (tel_no) VALUES (?);
+  INSERT INTO telefon_nolar_musteriler (musteriler_id, telefon_nolar_id) VALUES (?, LAST_INSERT_ID());`;
+  const values = [req.body.tel_no];
+  connection.query(q, [values, id], (error, data) => {
+    if (error) return res.status(500).json({ message: error });
+    return res.json("Telefon başarıyla oluşturuldu.");
+  });
+};
+
+exports.musteriTelefonGuncelle = async (req, res) => {
+  const id = req.params.id;
+  const values = req.body;
+  const q = `UPDATE telefon_nolar
+  SET tel_no = ?
+  WHERE id = (
+      SELECT telefon_nolar_id
+      FROM telefon_nolar_musteriler
+      WHERE musteriler_id = ?
+  );`;
+  connection.query(q, [values, id], (error, data) => {
+    if (error) return res.status(500).json({ message: error });
+    if (data.affectedRows === 0) {
+      return res.status(404).json({ error: "Telefon bulunamadı." });
+    }
+    return res.status(200).json({ message: "Telefon başarıyla güncellendi." });
+  });
+};
+
+exports.musteriTelefonSil = async (req, res) => {
+  const id = req.params.id;
+  const q = `DELETE FROM telefon_nolar_musteriler
+  WHERE  musteriler_id = ?;`;
+  connection.query(q, [id], (error, data) => {
+    if (error) return res.status(500).json({ message: error });
+    if (data.affectedRows === 0) {
+      return res.status(404).json({ error: "Telefon bulunamadı." });
+    }
+    return res.status(200).json({ message: "Telefon başarıyla silindi." });
   });
 };
