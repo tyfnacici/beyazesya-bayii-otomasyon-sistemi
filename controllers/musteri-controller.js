@@ -14,7 +14,7 @@ exports.musterileriGetir = async (req, res) => {
 };
 
 exports.musteriOlustur = async (req, res) => {
-  const q = `INSERT INTO musteriler (ad, soyad) VALUES (?,?);`;
+  const q = `INSERT INTO musteriler (ad, soyad) VALUES (?);`;
   const values = [req.body.ad, req.body.soyad];
   connection.query(q, [values], (error, data) => {
     if (error) return res.status(500).json({ message: error });
@@ -108,10 +108,9 @@ exports.musteriAdresleriniGetir = async (req, res) => {
 exports.musteriAdresEkle = async (req, res) => {
   //test edilecek
   const id = req.params.id;
-  const q = `INSERT INTO adresler (adres) VALUES (?);
-  INSERT INTO adresler_musteriler (musteriler_id, adresler_id) VALUES (2, LAST_INSERT_ID());`;
   const values = [req.body.adres];
-  connection.query(q, [values], (error, data) => {
+  const q = `INSERT INTO adresler (adres) VALUES (?); INSERT INTO adresler_musteriler (musteriler_id, adresler_id) VALUES (?, LAST_INSERT_ID());`;
+  connection.query(q, [values, id], (error, data) => {
     if (error) return res.status(500).json({ message: error });
     return res.json("Adres başarıyla oluşturuldu.");
   });

@@ -29,7 +29,7 @@ router.get("/:id", tekMusteriGetir);
 
 router.delete("/:id", musteriSil);
 
-router.get("/filter/:keyword", musterileriFiltrele);
+// router.get("/filter/:keyword", musterileriFiltrele);
 
 //Adres işlemleri
 router.get("/adres/:id", musteriAdresleriniGetir);
