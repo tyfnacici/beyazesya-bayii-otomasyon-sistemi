@@ -1,5 +1,5 @@
-create database vtbsProje_n;
-use vtbsProje_n;
+create database vtbsProje_a;
+use vtbsProje_a;
 
 -- Ürünler
 CREATE TABLE kategori (
@@ -14,7 +14,7 @@ CREATE TABLE markalar (
 
 CREATE TABLE urunler (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    urun_adi VARCHAR(30) NOT NULL,
+    urun_adi VARCHAR(50) NOT NULL,
     marka_id INT,
     kategori_id INT,
     fiyat DECIMAL(10, 2) NOT NULL,
@@ -27,7 +27,8 @@ CREATE TABLE urunler (
 CREATE TABLE magazalar (
 id INT AUTO_INCREMENT PRIMARY KEY,
 ad varchar(50),
-adres varchar(250)
+adres varchar(250),
+kar_oranı DECIMAL(10, 2)
 );
 
 -- Kulanıcılar
@@ -97,7 +98,7 @@ CREATE TABLE telefon_nolar_users (
     FOREIGN KEY (users_id) REFERENCES users(id)
 );
 
-CREATE TABLE magzalar_users (
+CREATE TABLE magazalar_users (
 	users_id INT,
     magazalar_id INT,
     PRIMARY KEY (magazalar_id, users_id),
@@ -106,7 +107,7 @@ CREATE TABLE magzalar_users (
 );
 -- sıparısler
 
-CREATE TABLE magzalar_siparis (
+CREATE TABLE magazalar_siparis (
 id INT AUTO_INCREMENT PRIMARY KEY,
 siparis_tarih DATETIME DEFAULT CURRENT_TIMESTAMP,
 adet INT,
@@ -126,14 +127,163 @@ FOREIGN KEY (musteriler_id) REFERENCES musteriler(id),
 FOREIGN KEY (urunler_id) REFERENCES urunler(id)
 );
 
+-- stok malidurum
+
+CREATE TABLE magaza_stok (
+id INT AUTO_INCREMENT PRIMARY KEY,
+adet INT NOT NULL DEFAULT 0,
+magazalar_id INT DEFAULT NULL,
+urunler_id INT DEFAULT NULL,
+FOREIGN KEY (magazalar_id) REFERENCES magazalar(id),
+FOREIGN KEY (urunler_id) REFERENCES urunler(id)
+);
+
+create table magaza_mali_durum (
+id INT AUTO_INCREMENT PRIMARY KEY,
+gelir DECIMAL(10, 2) NOT NULL DEFAULT 0,
+gider DECIMAL(10, 2) NOT NULL DEFAULT 0,
+bürüt_kar DECIMAL(10, 2) NOT NULL DEFAULT 0,
+magazalar_id INT,
+FOREIGN KEY (magazalar_id) REFERENCES magazalar(id)
+);
+
+-- View
+
+CREATE VIEW magaza_stok_durum AS
+SELECT 
+ magazalar.ad AS magaza_adi,
+ urunler.urun_adi,
+ urunler.fiyat,
+ magaza_stok.adet,
+ 'Stokta' AS stok_durumu
+FROM magaza_stok
+JOIN magazalar ON magazalar.id = magaza_stok.magazalar_id
+JOIN urunler ON urunler.id = magaza_stok.urunler_id
+WHERE
+    magaza_stok.adet > 0
+
+UNION
+
+SELECT 
+ magazalar.ad AS magaza_adi,
+ urunler.urun_adi,
+ urunler.fiyat,
+ magaza_stok.adet,
+ 'Stokta Yok' AS stok_durumu
+FROM magaza_stok
+JOIN magazalar ON magazalar.id = magaza_stok.magazalar_id
+JOIN urunler ON urunler.id = magaza_stok.urunler_id
+WHERE
+    magaza_stok.adet = 0
+
+UNION
+
+SELECT
+    magazalar.ad AS magaza_adi,
+    urunler.urun_adi,
+    urunler.fiyat,
+    magaza_stok.adet,
+    'Stok Ekside' AS stok_durumu
+FROM magaza_stok
+JOIN magazalar ON magazalar.id = magaza_stok.magazalar_id
+JOIN urunler ON urunler.id = magaza_stok.urunler_id
+WHERE
+    magaza_stok.adet < 0;
+
+
+CREATE VIEW siparisler AS
+SELECT 
+ magazalar.ad AS magaza_adi,
+ urunler.urun_adi,
+ urunler.fiyat,
+ magazalar_siparis.adet, 
+ magazalar_siparis.siparis_tarih, 
+ 'magaza' AS siparis_turu
+FROM magazalar_siparis
+JOIN magazalar ON magazalar.id = magazalar_siparis.magazalar_id
+JOIN urunler ON urunler.id = magazalar_siparis.urunler_id
+
+UNION
+
+SELECT musteriler.ad AS 
+ musteri_adi, 
+ urunler.urun_adi, 
+ urunler.fiyat,
+ musteriler_siparis.adet,
+ musteriler_siparis.siparis_tarih,
+ 'musteri' AS siparis_turu
+FROM musteriler_siparis
+JOIN musteriler ON musteriler.id = musteriler_siparis.musteriler_id
+JOIN urunler ON urunler.id = musteriler_siparis.urunler_id;
+
+-- Trigger
+
+show triggers;
+DELIMITER $$
+CREATE TRIGGER tr_magazalar AFTER INSERT ON magazalar
+FOR EACH ROW
+BEGIN
+    INSERT INTO magaza_mali_durum (magazalar_id) VALUES (NEW.id);
+END$$
+DELIMITER ;
+
+DELIMITER $$
+CREATE TRIGGER tr_magazalar_stok AFTER INSERT ON magazalar_siparis
+FOR EACH ROW
+BEGIN
+    IF
+    (SELECT COUNT(*) FROM magaza_stok WHERE magazalar_id = NEW.magazalar_id AND urunler_id = NEW.urunler_id) > 0
+    THEN
+        UPDATE magaza_stok SET adet = adet + NEW.adet WHERE magazalar_id = NEW.magazalar_id AND urunler_id = NEW.urunler_id;
+    ELSE
+        INSERT INTO magaza_stok (magazalar_id, urunler_id, adet) VALUES (NEW.magazalar_id, NEW.urunler_id, NEW.adet);
+    END IF;
+END$$
+DELIMITER ;
+
+DELIMITER $$
+CREATE TRIGGER tr_musteriler_stok AFTER INSERT ON musteriler_siparis
+FOR EACH ROW
+BEGIN
+    IF
+    (SELECT COUNT(*) FROM magaza_stok WHERE magazalar_id = (SELECT magazalar_id FROM musteriler WHERE id = NEW.musteriler_id) AND urunler_id = NEW.urunler_id) > 0
+    THEN
+        UPDATE magaza_stok SET adet = adet - NEW.adet WHERE magazalar_id = (SELECT magazalar_id FROM musteriler WHERE id = NEW.musteriler_id) AND urunler_id = NEW.urunler_id;
+    ELSE
+        INSERT INTO magaza_stok (magazalar_id, urunler_id, adet) VALUES ((SELECT magazalar_id FROM musteriler WHERE id = NEW.musteriler_id), NEW.urunler_id, NEW.adet);
+    END IF;
+END$$
+DELIMITER ;
+
+DELIMITER $$
+CREATE TRIGGER tr_magazalar_mali_durum AFTER INSERT ON magazalar_siparis
+FOR EACH ROW
+BEGIN
+    UPDATE 
+    magaza_mali_durum 
+    SET 
+    gider = gider + (NEW.adet * (SELECT fiyat FROM urunler WHERE id = NEW.urunler_id)),
+    gelir = gelir + (NEW.adet * (SELECT fiyat FROM urunler WHERE id = NEW.urunler_id) * ((SELECT kar_oranı FROM magazalar WHERE id = NEW.magazalar_id) + 1)),
+    bürüt_kar = gelir - gider
+    WHERE 
+    magazalar_id = NEW.magazalar_id;
+END$$
+DELIMITER ;
+show triggers;
+-- Indexler
+CREATE INDEX idx_musteriler_id ON musteriler (id);
 
 
 -- ÖRNEK VERİLER
 
 
-use vtbsproje_n;
--- Ürünler veri girişleri
+-- Magaza verileri girişleri
+INSERT INTO magazalar (ad, adres, kar_oranı) VALUES ('Alinin Beyaz Eşyaları', 'İstanbul, Beşiktaş', 0.30);
+INSERT INTO magazalar (ad, adres, kar_oranı) VALUES ('Al Götür Hemen Ev Eşyaları', 'Ankara, Kızılay', 0.20);
+INSERT INTO magazalar (ad, adres, kar_oranı) VALUES ('En İyi Ev Eşyaları Mağazası', 'İzmir, Karşıyaka', 0.25);
+INSERT INTO magazalar (ad, adres, kar_oranı) VALUES  ('Mağazaların En İyisi', 'Ankara, Keçiören', 0.15);
 
+-- Ürünler veri girişleri
 INSERT INTO kategori (kategori_adi) VALUES ('Buzdolabı');
 INSERT INTO kategori (kategori_adi) VALUES ('Çamaşır Makinesi');
 INSERT INTO kategori (kategori_adi) VALUES ('Televizyon');
@@ -227,11 +377,6 @@ INSERT INTO unvanlar (aciklama) VALUES ('Müdür');
 INSERT INTO unvanlar (aciklama) VALUES ('Satış Temsilcisi');
 INSERT INTO unvanlar (aciklama) VALUES ('Kasiyer');
 
--- Magaza verileri girişleri
-INSERT INTO magazalar (ad, adres) VALUES ('Alinin Beyaz Eşyaları', 'İstanbul, Beşiktaş');
-INSERT INTO magazalar (ad, adres) VALUES ('Al Götür Hemen Ev Eşyaları', 'Ankara, Kızılay');
-INSERT INTO magazalar (ad, adres) VALUES ('En İyi Ev Eşyaları Mağazası', 'İzmir, Karşıyaka');
-INSERT INTO magazalar (ad, adres) VALUES  ('Mağazaların En İyisi', 'Ankara, Keçiören');
 
 -- Kullanıcılar
 INSERT INTO users (username, password_hash, rol, ad, soyad, unvan_id, maas) VALUES ('admin', '123456', 0, 'Admin', 'Kullanıcı', 1, 0);
@@ -389,135 +534,135 @@ INSERT INTO telefon_nolar_users (users_id, telefon_nolar_id) VALUES (11, 11);
 INSERT INTO telefon_nolar_users (users_id, telefon_nolar_id) VALUES (12, 12);
 
 -- Kulanıcı Magaza Eşleme
-INSERT INTO magzalar_users (users_id, magazalar_id) VALUES (2, 1);
-INSERT INTO magzalar_users (users_id, magazalar_id) VALUES (3, 1);
-INSERT INTO magzalar_users (users_id, magazalar_id) VALUES (4, 1);
-INSERT INTO magzalar_users (users_id, magazalar_id) VALUES (5, 2);
-INSERT INTO magzalar_users (users_id, magazalar_id) VALUES (6, 2);
-INSERT INTO magzalar_users (users_id, magazalar_id) VALUES (7, 2);
-INSERT INTO magzalar_users (users_id, magazalar_id) VALUES (8, 3);
-INSERT INTO magzalar_users (users_id, magazalar_id) VALUES (9, 3);
-INSERT INTO magzalar_users (users_id, magazalar_id) VALUES (10, 3);
-INSERT INTO magzalar_users (users_id, magazalar_id) VALUES (11, 4);
-INSERT INTO magzalar_users (users_id, magazalar_id) VALUES (12, 4);
-INSERT INTO magzalar_users (users_id, magazalar_id) VALUES (13, 4);
+INSERT INTO magazalar_users (users_id, magazalar_id) VALUES (2, 1);
+INSERT INTO magazalar_users (users_id, magazalar_id) VALUES (3, 1);
+INSERT INTO magazalar_users (users_id, magazalar_id) VALUES (4, 1);
+INSERT INTO magazalar_users (users_id, magazalar_id) VALUES (5, 2);
+INSERT INTO magazalar_users (users_id, magazalar_id) VALUES (6, 2);
+INSERT INTO magazalar_users (users_id, magazalar_id) VALUES (7, 2);
+INSERT INTO magazalar_users (users_id, magazalar_id) VALUES (8, 3);
+INSERT INTO magazalar_users (users_id, magazalar_id) VALUES (9, 3);
+INSERT INTO magazalar_users (users_id, magazalar_id) VALUES (10, 3);
+INSERT INTO magazalar_users (users_id, magazalar_id) VALUES (11, 4);
+INSERT INTO magazalar_users (users_id, magazalar_id) VALUES (12, 4);
+INSERT INTO magazalar_users (users_id, magazalar_id) VALUES (13, 4);
 
 -- Bayi Siparişleri
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (5, 1, 2);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (3, 2, 7);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (10, 4, 13);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (1, 3, 18);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (7, 1, 22);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (2, 4, 29);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (4, 2, 35);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (6, 3, 41);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (8, 1, 47);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (9, 3, 48);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (5, 2, 5);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (3, 1, 12);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (10, 4, 17);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (1, 3, 20);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (7, 1, 24);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (2, 3, 30);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (4, 2, 34);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (6, 3, 40);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (8, 1, 46);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (9, 4, 48);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (5, 2, 3);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (3, 1, 10);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (10, 4, 14);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (1, 3, 19);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (7, 1, 21);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (2, 4, 27);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (4, 2, 33);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (6, 3, 32);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (8, 1, 45);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (9, 4, 45);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (5, 2, 1);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (3, 1, 8);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (10, 4, 11);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (1, 3, 16);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (7, 1, 23);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (2, 1, 28);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (4, 2, 36);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (6, 3, 43);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (8, 1, 48);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (9, 4, 5);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (5, 2, 6);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (3, 1, 13);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (10, 4, 15);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (1, 3, 21);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (7, 1, 25);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (2, 2, 31);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (4, 2, 38);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (6, 3, 42);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (8, 1, 46);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (9, 4, 23);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (5, 2, 4);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (3, 1, 11);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (10, 4, 14);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (1, 3, 18);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (7, 1, 22);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (2, 2, 26);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (4, 2, 32);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (6, 3, 31);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (8, 1, 47);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (9, 4, 41);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (5, 2, 2);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (3, 1, 9);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (10, 4, 12);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (1, 3, 17);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (7, 1, 20);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (2, 3, 28);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (4, 2, 34);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (6, 3, 40);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (8, 1, 45);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (9, 4, 8);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (5, 2, 7);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (3, 1, 14);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (10, 4, 16);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (1, 3, 19);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (7, 1, 23);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (2, 2, 30);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (4, 2, 35);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (6, 3, 41);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (8, 1, 47);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (9, 4, 32);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (5, 2, 5);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (3, 1, 12);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (10, 4, 17);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (1, 3, 20);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (7, 1, 24);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (2, 2, 29);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (4, 2, 33);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (6, 3, 42);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (8, 1, 48);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (9, 4, 20);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (5, 2, 3);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (3, 1, 10);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (10, 4, 13);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (1, 3, 16);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (7, 1, 21);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (2, 1, 26);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (4, 2, 34);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (6, 3, 39);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (8, 1, 45);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (9, 4, 48);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (5, 2, 1);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (3, 1, 8);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (10, 4, 11);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (1, 3, 19);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (7, 1, 23);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (2, 1, 27);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (4, 2, 38);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (6, 3, 40);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (8, 1, 46);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (9, 4, 20);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (5, 2, 6);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (3, 1, 13);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (10, 4, 15);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (1, 3, 17);
-INSERT INTO magzalar_siparis (adet, magazalar_id, urunler_id) VALUES (7, 1, 25);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (5, 1, 2);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (3, 2, 7);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (10, 4, 13);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (1, 3, 18);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (7, 1, 22);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (2, 4, 29);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (4, 2, 35);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (6, 3, 41);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (8, 1, 47);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (9, 3, 48);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (5, 2, 5);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (3, 1, 12);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (10, 4, 17);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (1, 3, 20);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (7, 1, 24);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (2, 3, 30);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (4, 2, 34);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (6, 3, 40);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (8, 1, 46);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (9, 4, 48);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (5, 2, 3);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (3, 1, 10);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (10, 4, 14);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (1, 3, 19);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (7, 1, 21);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (2, 4, 27);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (4, 2, 33);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (6, 3, 32);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (8, 1, 45);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (9, 4, 45);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (5, 2, 1);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (3, 1, 8);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (10, 4, 11);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (1, 3, 16);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (7, 1, 23);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (2, 1, 28);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (4, 2, 36);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (6, 3, 43);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (8, 1, 48);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (9, 4, 5);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (5, 2, 6);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (3, 1, 13);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (10, 4, 15);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (1, 3, 21);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (7, 1, 25);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (2, 2, 31);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (4, 2, 38);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (6, 3, 42);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (8, 1, 46);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (9, 4, 23);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (5, 2, 4);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (3, 1, 11);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (10, 4, 14);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (1, 3, 18);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (7, 1, 22);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (2, 2, 26);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (4, 2, 32);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (6, 3, 31);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (8, 1, 47);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (9, 4, 41);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (5, 2, 2);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (3, 1, 9);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (10, 4, 12);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (1, 3, 17);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (7, 1, 20);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (2, 3, 28);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (4, 2, 34);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (6, 3, 40);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (8, 1, 45);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (9, 4, 8);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (5, 2, 7);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (3, 1, 14);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (10, 4, 16);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (1, 3, 19);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (7, 1, 23);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (2, 2, 30);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (4, 2, 35);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (6, 3, 41);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (8, 1, 47);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (9, 4, 32);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (5, 2, 5);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (3, 1, 12);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (10, 4, 17);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (1, 3, 20);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (7, 1, 24);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (2, 2, 29);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (4, 2, 33);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (6, 3, 42);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (8, 1, 48);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (9, 4, 20);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (5, 2, 3);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (3, 1, 10);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (10, 4, 13);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (1, 3, 16);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (7, 1, 21);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (2, 1, 26);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (4, 2, 34);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (6, 3, 39);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (8, 1, 45);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (9, 4, 48);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (5, 2, 1);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (3, 1, 8);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (10, 4, 11);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (1, 3, 19);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (7, 1, 23);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (2, 1, 27);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (4, 2, 38);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (6, 3, 40);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (8, 1, 46);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (9, 4, 20);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (5, 2, 6);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (3, 1, 13);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (10, 4, 15);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (1, 3, 17);
+INSERT INTO magazalar_siparis (adet, magazalar_id, urunler_id) VALUES (7, 1, 25);
 
 -- Müşterileri siaprişleri
 
