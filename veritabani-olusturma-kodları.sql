@@ -272,7 +272,10 @@ DELIMITER ;
 show triggers;
 -- Indexler
 CREATE INDEX idx_musteriler_id ON musteriler (id);
-
+CREATE INDEX idx_adresler_id ON adresler (id);
+CREATE INDEX idx_telefon_nolar_id ON telefon_nolar (id);
+CREATE INDEX idx_magazalar_id ON magazalar (id);
+CREATE INDEX idx_magaza_stok_id ON magaza_stok (id);
 
 -- ÖRNEK VERİLER
 

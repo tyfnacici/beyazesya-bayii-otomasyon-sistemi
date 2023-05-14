@@ -1,3 +1,4 @@
+const string = require("2/string.js");
 const connection = require("../service/connection.js");
 
 //Body işlemleri
@@ -23,7 +24,6 @@ exports.musteriOlustur = async (req, res) => {
 };
 
 exports.musteriGuncelle = async (req, res) => {
-  // test edilecek
   const id = req.params.id;
   const values = req.body;
   const q = "UPDATE musteriler SET ? WHERE id = ?";
@@ -63,7 +63,6 @@ exports.musteriSil = async (req, res) => {
 };
 
 exports.musterileriFiltrele = async (req, res) => {
-  // geliştirilecek
   const { keyword } = req.params;
   const search = `%${keyword}%`;
   const q = `
@@ -93,7 +92,7 @@ exports.musteriAdresleriniGetir = async (req, res) => {
   adresler.adres
   FROM 
   adresler_musteriler 
-  join adresler ON adresler_musteriler.musteriler_id = adresler.id
+  join adresler ON adresler_musteriler.adresler_id = adresler.id
   WHERE 
   musteriler_id = ?;`;
   connection.query(q, [id], (error, data) => {
@@ -106,10 +105,10 @@ exports.musteriAdresleriniGetir = async (req, res) => {
 };
 
 exports.musteriAdresEkle = async (req, res) => {
-  //test edilecek
   const id = req.params.id;
   const values = [req.body.adres];
-  const q = `INSERT INTO adresler (adres) VALUES (?); INSERT INTO adresler_musteriler (musteriler_id, adresler_id) VALUES (?, LAST_INSERT_ID());`;
+  const q = `INSERT INTO adresler (adres) VALUES (?); 
+  INSERT INTO adresler_musteriler (musteriler_id, adresler_id) VALUES (?, LAST_INSERT_ID());`;
   connection.query(q, [values, id], (error, data) => {
     if (error) return res.status(500).json({ message: error });
     return res.json("Adres başarıyla oluşturuldu.");
@@ -119,13 +118,7 @@ exports.musteriAdresEkle = async (req, res) => {
 exports.musteriAdresGuncelle = async (req, res) => {
   const id = req.params.id;
   const values = req.body;
-  const q = `UPDATE adresler
-  SET adres = ?
-  WHERE id = (
-      SELECT adresler_id
-      FROM adresler_musteriler
-      WHERE musteriler_id = ?
-  );`;
+  const q = `UPDATE adresler SET ? WHERE id = ?;`;
   connection.query(q, [values, id], (error, data) => {
     if (error) return res.status(500).json({ message: error });
     if (data.affectedRows === 0) {
@@ -138,8 +131,9 @@ exports.musteriAdresGuncelle = async (req, res) => {
 exports.musteriAdresSil = async (req, res) => {
   const id = req.params.id;
   const q = `DELETE FROM adresler_musteriler
-  WHERE id = musteriler_id = ?;`;
-  connection.query(q, [id], (error, data) => {
+  WHERE adresler_id = ?;
+  DELETE FROM adresler WHERE id = ?;`;
+  connection.query(q, [id, id], (error, data) => {
     if (error) return res.status(500).json({ message: error });
     if (data.affectedRows === 0) {
       return res.status(404).json({ error: "Adres bulunamadı." });
@@ -157,7 +151,7 @@ exports.musteriTelefonlariniGetir = async (req, res) => {
   telefon_nolar.tel_no
   FROM 
   telefon_nolar_musteriler
-  join telefon_nolar ON telefon_nolar_musteriler.musteriler_id = telefon_nolar.id
+  join telefon_nolar ON telefon_nolar_musteriler.telefon_nolar_id = telefon_nolar.id
   WHERE 
   musteriler_id = ? ;`;
   connection.query(q, [id], (error, data) => {
@@ -183,13 +177,7 @@ exports.musteriTelefonEkle = async (req, res) => {
 exports.musteriTelefonGuncelle = async (req, res) => {
   const id = req.params.id;
   const values = req.body;
-  const q = `UPDATE telefon_nolar
-  SET tel_no = ?
-  WHERE id = (
-      SELECT telefon_nolar_id
-      FROM telefon_nolar_musteriler
-      WHERE musteriler_id = ?
-  );`;
+  const q = `UPDATE telefon_nolar SET ? WHERE id = ?;`;
   connection.query(q, [values, id], (error, data) => {
     if (error) return res.status(500).json({ message: error });
     if (data.affectedRows === 0) {
@@ -201,8 +189,8 @@ exports.musteriTelefonGuncelle = async (req, res) => {
 
 exports.musteriTelefonSil = async (req, res) => {
   const id = req.params.id;
-  const q = `DELETE FROM telefon_nolar_musteriler
-  WHERE  musteriler_id = ?;`;
+  const q = `DELETE FROM telefon_nolar_musteriler WHERE  telefon_nolar_id = ?;
+  DELETE FROM telefon_nolar WHERE id = ?;`;
   connection.query(q, [id], (error, data) => {
     if (error) return res.status(500).json({ message: error });
     if (data.affectedRows === 0) {
