@@ -19,17 +19,17 @@ const {
 } = require("../controllers/musteri-controller.js");
 
 //Body işlemleri
-router.get("/", musterileriGetir);
+router.get("/kisi", musterileriGetir);
 
-router.post("/", musteriOlustur);
+router.post("/kisi", musteriOlustur);
 
-router.patch("/:id", musteriGuncelle);
+router.patch("/kisi/:id", musteriGuncelle);
 
-router.get("/:id", tekMusteriGetir);
+router.get("/kisi/:id", tekMusteriGetir);
 
-router.delete("/:id", musteriSil);
+router.delete("/kisi/:id", musteriSil);
 
-// router.get("/filter/:keyword", musterileriFiltrele);
+router.get("/kisi/filter/:select/:keyword/", musterileriFiltrele);
 
 //Adres işlemleri
 router.get("/adres/:id", musteriAdresleriniGetir);

@@ -1,3 +1,4 @@
+const e = require("express");
 const connection = require("../service/connection.js");
 
 // Musteri siparisleri
@@ -14,10 +15,9 @@ exports.musteriSiparisleriGetir = async (req, res) => {
 };
 
 exports.musteriSiparisOlustur = async (req, res) => {
-  // test edilecek
   const q =
-    "INSERT INTO musteriler_siparis (adet, musteriler_id, urunler_id) VALUES (?,?,?);";
-  const values = [req.query.adet, req.body.musteri_id, req.body.urun_id];
+    "INSERT INTO musteriler_siparis (adet, musteriler_id, urunler_id) VALUES (?);";
+  const values = [req.body.adet, req.body.musteri_id, req.body.urun_id];
   connection.query(q, [values], (error, data) => {
     if (error) return res.status(500).json({ message: error });
     return res.json("Sipariş başarıyla oluşturuldu.");
@@ -54,7 +54,8 @@ exports.musteriTekSiparisGetir = async (req, res) => {
 
 exports.musteriSiparisSil = async (req, res) => {
   const id = req.params.id;
-  const q = "DELETE FROM siparisler WHERE id = ?";
+  const q = `DELETE FROM siparisler_musteriler WHERE id = ?
+   DELETE FROM siparisler WHERE id = ?;`;
   connection.query(q, [id], (error, data) => {
     if (error) return res.status(500).json({ message: error });
     if (data.affectedRows === 0) {
@@ -64,7 +65,7 @@ exports.musteriSiparisSil = async (req, res) => {
   });
 };
 
-exports.siparisleriFiltrele = async (req, res) => {
+exports.musteriSiparisleriFiltrele = async (req, res) => {
   const keyword = req.params.keyword;
   const select = req.params.select;
 
@@ -72,13 +73,13 @@ exports.siparisleriFiltrele = async (req, res) => {
   let params;
 
   switch (select) {
-    case "musteri_id":
-      q = `SELECT * FROM siparisler WHERE musteri_id LIKE ?`;
+    case "urun_adi":
+      q = `SELECT * FROM siparisler WHERE urun_adi LIKE ?`;
       params = [`%${keyword}%`];
       break;
 
-    case "urun_id":
-      q = `SELECT * FROM siparisler WHERE urun_id LIKE ?`;
+    case "magaza_adi":
+      q = `SELECT * FROM siparisler WHERE magaza_adi LIKE ?`;
       params = [`%${keyword}%`];
       break;
 
@@ -87,13 +88,18 @@ exports.siparisleriFiltrele = async (req, res) => {
       params = [`%${keyword}%`];
       break;
 
-    case "teslim_tarihi":
-      q = `SELECT * FROM siparisler WHERE teslim_tarihi LIKE ?`;
+    case "sparis_turu":
+      q = `SELECT * FROM siparisler WHERE sparis_turu LIKE ?`;
       params = [`%${keyword}%`];
       break;
 
-    case "siparis_durumu":
-      q = `SELECT * FROM siparisler WHERE siparis_durumu LIKE ?`;
+    case "adet":
+      q = `SELECT * FROM siparisler WHERE adet LIKE ?`;
+      params = [`%${keyword}%`];
+      break;
+
+    case "fiyat":
+      q = `SELECT * FROM siparisler WHERE fiyat LIKE ?`;
       params = [`%${keyword}%`];
       break;
 
@@ -114,25 +120,35 @@ exports.siparisleriFiltrele = async (req, res) => {
       break;
   }
 
-  try {
-    const results = await connection.query(q, params);
-
-    if (results.length === 0) {
+  connection.query(q, [params], (error, data) => {
+    if (error) return res.status(500).json({ message: error });
+    if (data.affectedRows === 0) {
       return res.status(404).json({ error: "Sipariş bulunamadı." });
     }
-
-    return res.json(results);
-  } catch (error) {
-    return res.status(500).json({ message: error });
-  }
-
-  /*connection.query(q, (error, data) => {
-        if (error) return res.status(500).json({ message: error });
-        if (data.length === 0) {
-            return res.status(404).json({ error: "Sipariş bulunamadı." });
-        }
-        return res.json(data);
-    });*/
+    return res.status(200).json(data);
+  });
 };
 
 // Urun siparisleri
+
+exports.magzaSiparisleriGetir = async (req, res) => {
+  const q = "SELECT * FROM siparisler WHERE siparis_turu = 'magaza';";
+  connection.query(q, (error, data) => {
+    if (error) return res.status(500).json({ message: error });
+    if (data.length === 0) {
+      return res.status(404).json({ error: "Sipariş bulunamadı." });
+    }
+    return res.json(data);
+  });
+};
+
+exports.magzaSiparisOlustur = async (req, res) => {
+  // test edilecek
+  const q =
+    "INSERT INTO magazalar_siparis (adet, magaza_id, urunler_id) VALUES (?);";
+  const values = [req.body.adet, req.body.magaza_id, req.body.urun_id];
+  connection.query(q, [values], (error, data) => {
+    if (error) return res.status(500).json({ message: error });
+    return res.json("Sipariş başarıyla oluşturuldu.");
+  });
+};
