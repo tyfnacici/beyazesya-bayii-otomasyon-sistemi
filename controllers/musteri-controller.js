@@ -63,17 +63,57 @@ exports.musteriSil = async (req, res) => {
 };
 
 exports.musterileriFiltrele = async (req, res) => {
-  const { keyword } = req.params;
-  const search = `%${keyword}%`;
-  const q = `
-    SELECT * 
-    FROM musteriler 
-    WHERE ad LIKE ? 
-      OR soyad LIKE ? 
-      OR adres LIKE ? 
-      OR telefon_numarasi LIKE ?
-  `;
-  connection.query(q, [search, search, search, search], (error, data) => {
+  const keyword = req.params.keyword;
+  const select = req.params.select;
+
+  let q;
+  let params;
+  switch (select) {
+    case "ad":
+      q = `SELECT * FROM musteriler WHERE ad LIKE ?`;
+      params = "%" + keyword + "%";
+      break;
+    case "soyad":
+      q = `SELECT * FROM musteriler WHERE soyad LIKE ?`;
+      params = "%" + keyword + "%";
+      break;
+    case "adres":
+      q = `SELECT
+            adresler_musteriler.musteriler_id,
+            adresler.id,
+            musteriler.ad,
+            musteriler.soyad,
+            adresler.adres 
+            FROM 
+            adresler_musteriler
+            join adresler ON adresler_musteriler.adresler_id = adresler.id
+            join musteriler ON musteriler.id = adresler_musteriler.musteriler_id
+            WHERE 
+            adresler.adres  LIKE ?;`;
+      params = "%" + keyword + "%";
+      break;
+    case "telefon":
+      q = `SELECT
+            telefon_nolar_musteriler.musteriler_id,
+            telefon_nolar.id,
+            musteriler.ad,
+            musteriler.soyad,
+            telefon_nolar.tel_no
+            FROM 
+            telefon_nolar_musteriler
+            join telefon_nolar ON telefon_nolar_musteriler.telefon_nolar_id = telefon_nolar.id
+            join musteriler ON musteriler.id = telefon_nolar_musteriler.musteriler_id
+            WHERE 
+            telefon_nolar.tel_no  LIKE ?;`;
+      params = "%" + keyword + "%";
+      break;
+    default:
+      q = `SELECT * FROM musteriler WHERE ad LIKE ?  OR soyad LIKE ? `;
+      params = ["%" + keyword + "%", "%" + keyword + "%"];
+      break;
+  }
+
+  connection.query(q, [params], (error, data) => {
     if (error) return res.status(500).json({ message: error });
     if (data.length === 0) {
       return res.status(404).json({ error: "Kullanıcı bulunamadı." });
