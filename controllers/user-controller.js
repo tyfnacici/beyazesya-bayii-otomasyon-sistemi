@@ -54,5 +54,40 @@ exports.login = async (req, res) => {
 };
 
 exports.deleteUser = async (req, res) => {
-  const { id } = req.params;
+  const { id } = req.query;
+  let adres_id = "";
+  let telefon_id = "";
+
+  connection.query(
+    "SELECT * FROM adresler_users WHERE users_id = ?;",
+    [id],
+    (error, data) => {
+      if (data.length === 0)
+        return res.status(404).json({ error: "User not found." });
+      if (error) return res.status(500).json({ message: error });
+      adres_id = data[0].adresler_id;
+
+      connection.query(
+        "SELECT * FROM telefon_nolar_users WHERE users_id = ?;",
+        [id],
+        (error, data) => {
+          if (data.length === 0)
+            return res.status(404).json({ error: "User not found." });
+          if (error) return res.status(500).json({ message: error });
+          telefon_id = data[0].telefon_nolar_id;
+        }
+      );
+
+      connection.query(
+        "DELETE FROM adresler_users WHERE users_id = ?; DELETE FROM adresler WHERE id = ?; DELETE FROM magazalar_users WHERE users_id = ?; DELETE FROM telefon_nolar_users WHERE users_id = ?; DELETE FROM telefon_nolar WHERE id = ?; DELETE FROM users WHERE id = ?;",
+        [adres_id, id, id, telefon_id, id, id],
+        (error, data) => {
+          if (error) return res.status(500).json({ message: error });
+          res.status(201).json({
+            message: "User deleted successfully",
+          });
+        }
+      );
+    }
+  );
 };

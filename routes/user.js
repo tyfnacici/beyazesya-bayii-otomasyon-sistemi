@@ -7,10 +7,12 @@ const {
   signup,
   login,
   listAllUsers,
+  deleteUser,
 } = require("../controllers/user-controller.js");
 
 router.post("/signup", signup);
 router.post("/login", login);
 router.get("/", checkAdmin, listAllUsers);
+router.get("/sil", deleteUser);
 
 module.exports = router;
