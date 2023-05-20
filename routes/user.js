@@ -1,6 +1,8 @@
 const express = require("express");
 const router = express.Router();
 
+const { checkAuth, checkAdmin } = require("../service/check-auth.js");
+
 const {
   signup,
   login,
@@ -9,6 +11,6 @@ const {
 
 router.post("/signup", signup);
 router.post("/login", login);
-router.get("/", listAllUsers);
+router.get("/", checkAdmin, listAllUsers);
 
 module.exports = router;

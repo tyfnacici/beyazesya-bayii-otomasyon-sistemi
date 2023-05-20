@@ -3,17 +3,21 @@ const jwt = require("jsonwebtoken");
 const connection = require("../service/connection.js");
 
 exports.signup = async (req, res) => {
-  const { username, password, role } = req.body;
+  const { username, password, rol, ad, soyad, unvan_id, maas } = req.body;
   const salt = await bcryptjs.genSalt(10);
   const hashedPassword = await bcryptjs.hash(password, salt);
-  const q =
-    "INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)";
-  connection.query(q, [username, hashedPassword, role], (error, data) => {
-    if (error) return res.status(500).json({ message: error });
-    res.status(201).json({
-      message: "User created",
-    });
-  });
+  const q2 =
+    "INSERT INTO users (username, password_hash, rol, ad, soyad, unvan_id, maas) VALUES (?, ?, ?, ?, ?, ?, ?)";
+  connection.query(
+    q2,
+    [username, hashedPassword, rol, ad, soyad, unvan_id, maas],
+    (error, data) => {
+      if (error) return res.status(500).json({ message: error });
+      res.status(201).json({
+        message: "User created",
+      });
+    }
+  );
 };
 
 exports.listAllUsers = async (req, res) => {
@@ -45,6 +49,10 @@ exports.login = async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: "1h" }
     );
-    return res.json({ token });
+    return res.status(200).json({ token });
   });
+};
+
+exports.deleteUser = async (req, res) => {
+  const { id } = req.params;
 };

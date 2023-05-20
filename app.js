@@ -1,13 +1,19 @@
 require("dotenv").config();
 const express = require("express");
 const api = require("./routes/index.js"); // routes klasöründeki index.js dosyası tanımlandı
-const connection = require("./service/connection.js");  // service klasöründeki connection.js dosyası tanımlandı
+const connection = require("./service/connection.js"); // service klasöründeki connection.js dosyası tanımlandı
+const cors = require("cors");
 
 const app = express(); // express uygulaması oluşturuldu
 const port = process.env.PORT || 3000; // 3000 portunu kullanacak
 app.use(express.json());
+app.use(
+  cors({
+    origin: "*",
+  })
+);
 
-connection.getConnection((err) => {
+connection.connect((err) => {
   if (err) throw err;
   console.log("Connected!");
   app.listen(port, () => {
