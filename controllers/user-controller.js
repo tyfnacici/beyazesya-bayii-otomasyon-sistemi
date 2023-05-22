@@ -80,3 +80,29 @@ exports.deleteUser = async (req, res) => {
     res.json({ message: "User deleted" });
   });
 };
+
+exports.tekKulaniciGetir = async (req, res) => {
+  const { id } = req.params;
+  const q = "SELECT * FROM users WHERE id = ?";
+  connection.query(q, [id], (error, data) => {
+    if (error) return res.status(500).json({ message: error });
+    res.json(data);
+  });
+};
+
+exports.updateUser = async (req, res) => {
+  const { id } = req.params;
+  const { username, password, rol, ad, soyad, unvan_id, maas } = req.body;
+  const salt = await bcryptjs.genSalt(10);
+  const hashedPassword = await bcryptjs.hash(password, salt);
+  const q =
+    "UPDATE users SET username = ?, password_hash = ?, rol = ?, ad = ?, soyad = ?, unvan_id = ?, maas = ? WHERE id = ?";
+  connection.query(
+    q,
+    [username, hashedPassword, rol, ad, soyad, unvan_id, maas, id],
+    (error, data) => {
+      if (error) return res.status(500).json({ message: error });
+      res.json({ message: "User updated" });
+    }
+  );
+};
