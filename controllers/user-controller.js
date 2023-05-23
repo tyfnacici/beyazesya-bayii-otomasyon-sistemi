@@ -108,6 +108,7 @@ exports.updateUser = async (req, res) => {
 };
 
 //Adres işlemleri
+
 exports.userAdresleriniGetir = async (req, res) => {
   const { id } = req.params;
   const q = `SELECT
@@ -159,6 +160,63 @@ exports.userAdresSil = async (req, res) => {
     connection.query(q2, [id], (error, data) => {
       if (error) return res.status(500).json({ message: error });
       res.json({ message: "Adres silindi" });
+    });
+  });
+};
+
+//Telefon işlemleri
+
+exports.userTelefonlariniGetir = async (req, res) => {
+  const { id } = req.params;
+  const q = `SELECT
+  telefon_nolar_users.users_id,
+  telefon_nolar.id,
+  telefon_nolar.tel_no
+  FROM 
+  telefon_nolar_users 
+  join telefon_nolar ON telefon_nolar_users.telefon_nolar_id = telefon_nolar.id
+  WHERE 
+  users_id = ?;`;
+  connection.query(q, [id], (error, data) => {
+    if (error) return res.status(500).json({ message: error });
+    res.json(data);
+  });
+};
+
+exports.userTelefonEkle = async (req, res) => {
+  const { id } = req.params;
+  const { tel_no } = req.body;
+  const q = "INSERT INTO telefon_nolar (tel_no) VALUES (?)";
+  connection.query(q, [tel_no], (error, data) => {
+    if (error) return res.status(500).json({ message: error });
+    const q2 =
+      "INSERT INTO telefon_nolar_users (telefon_nolar_id, users_id) VALUES (?, ?)";
+    connection.query(q2, [data.insertId, id], (error, data) => {
+      if (error) return res.status(500).json({ message: error });
+      res.json({ message: "Telefon eklendi" });
+    });
+  });
+};
+
+exports.userTelefonGuncelle = async (req, res) => {
+  const { id } = req.params;
+  const { tel_no } = req.body;
+  const q = "UPDATE telefon_nolar SET tel_no = ? WHERE id = ?";
+  connection.query(q, [tel_no, id], (error, data) => {
+    if (error) return res.status(500).json({ message: error });
+    res.json({ message: "Telefon güncellendi" });
+  });
+};
+
+exports.userTelefonSil = async (req, res) => {
+  const { id } = req.params;
+  const q = "DELETE FROM telefon_nolar_users WHERE telefon_nolar_id = ?";
+  const q2 = "DELETE FROM telefon_nolar WHERE id = ?";
+  connection.query(q, [id], (error, data) => {
+    if (error) return res.status(500).json({ message: error });
+    connection.query(q2, [id], (error, data) => {
+      if (error) return res.status(500).json({ message: error });
+      res.json({ message: "Telefon silindi" });
     });
   });
 };

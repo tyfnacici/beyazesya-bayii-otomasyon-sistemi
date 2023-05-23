@@ -14,10 +14,10 @@ const {
   userAdresEkle,
   userAdresGuncelle,
   userAdresSil,
-  //userTelefonlariniGetir,
-  //userTelefonEkle,
-  //userTelefonGuncelle,
-  //userTelefonSil,
+  userTelefonlariniGetir,
+  userTelefonEkle,
+  userTelefonGuncelle,
+  userTelefonSil,
 } = require("../controllers/user-controller.js");
 
 router.post("/signup", signup);
@@ -34,9 +34,9 @@ router.patch("/adres/:id", userAdresGuncelle);
 router.delete("/adres/:id", userAdresSil);
 
 //Telefon işlemleri
-//router.get("/user/telefon/:id", userTelefonlariniGetir);
-//router.post("/user/telefon/:id", userTelefonEkle);
-//router.patch("/user/telefon/:id", userTelefonGuncelle);
-//router.delete("/user/telefon/:id", userTelefonSil);
+router.get("/telefon/:id", userTelefonlariniGetir);
+router.post("/telefon/:id", userTelefonEkle);
+router.patch("/telefon/:id", userTelefonGuncelle);
+router.delete("/telefon/:id", userTelefonSil);
 
 module.exports = router;
