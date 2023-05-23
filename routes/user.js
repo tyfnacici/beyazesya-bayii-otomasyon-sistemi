@@ -10,6 +10,14 @@ const {
   deleteUser,
   tekKulaniciGetir,
   updateUser,
+  userAdresleriniGetir,
+  userAdresEkle,
+  userAdresGuncelle,
+  userAdresSil,
+  //userTelefonlariniGetir,
+  //userTelefonEkle,
+  //userTelefonGuncelle,
+  //userTelefonSil,
 } = require("../controllers/user-controller.js");
 
 router.post("/signup", signup);
@@ -18,5 +26,17 @@ router.get("/", checkAdmin, listAllUsers);
 router.get("/sil", deleteUser);
 router.get("/:id", tekKulaniciGetir);
 router.patch("/:id", updateUser);
+
+//Adres işlemleri
+router.get("/adres/:id", userAdresleriniGetir);
+router.post("/adres/:id", userAdresEkle);
+router.patch("/adres/:id", userAdresGuncelle);
+router.delete("/adres/:id", userAdresSil);
+
+//Telefon işlemleri
+//router.get("/user/telefon/:id", userTelefonlariniGetir);
+//router.post("/user/telefon/:id", userTelefonEkle);
+//router.patch("/user/telefon/:id", userTelefonGuncelle);
+//router.delete("/user/telefon/:id", userTelefonSil);
 
 module.exports = router;

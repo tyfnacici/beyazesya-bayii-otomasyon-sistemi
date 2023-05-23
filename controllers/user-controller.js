@@ -106,3 +106,59 @@ exports.updateUser = async (req, res) => {
     }
   );
 };
+
+//Adres işlemleri
+exports.userAdresleriniGetir = async (req, res) => {
+  const { id } = req.params;
+  const q = `SELECT
+  adresler_users.users_id,
+  adresler.id,
+  adresler.adres
+  FROM 
+  adresler_users 
+  join adresler ON adresler_users.adresler_id = adresler.id
+  WHERE 
+  users_id = ?;`;
+  connection.query(q, [id], (error, data) => {
+    if (error) return res.status(500).json({ message: error });
+    res.json(data);
+  });
+};
+
+exports.userAdresEkle = async (req, res) => {
+  const { id } = req.params;
+  const { adres } = req.body;
+  const q = "INSERT INTO adresler (adres) VALUES (?)";
+  connection.query(q, [adres], (error, data) => {
+    if (error) return res.status(500).json({ message: error });
+    const q2 =
+      "INSERT INTO adresler_users (adresler_id, users_id) VALUES (?, ?)";
+    connection.query(q2, [data.insertId, id], (error, data) => {
+      if (error) return res.status(500).json({ message: error });
+      res.json({ message: "Adres eklendi" });
+    });
+  });
+};
+
+exports.userAdresGuncelle = async (req, res) => {
+  const { id } = req.params;
+  const { adres } = req.body;
+  const q = "UPDATE adresler SET adres = ? WHERE id = ?";
+  connection.query(q, [adres, id], (error, data) => {
+    if (error) return res.status(500).json({ message: error });
+    res.json({ message: "Adres güncellendi" });
+  });
+};
+
+exports.userAdresSil = async (req, res) => {
+  const { id } = req.params;
+  const q = "DELETE FROM adresler_users WHERE adresler_id = ?";
+  connection.query(q, [id], (error, data) => {
+    if (error) return res.status(500).json({ message: error });
+    const q2 = "DELETE FROM adresler WHERE id = ?";
+    connection.query(q2, [id], (error, data) => {
+      if (error) return res.status(500).json({ message: error });
+      res.json({ message: "Adres silindi" });
+    });
+  });
+};
